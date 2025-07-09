@@ -236,7 +236,7 @@ export default function OnboardingScreen() {
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionIconContainer}>
-                    <Ionicons name="list-circle-outline" size={20} color="#0052CC" />
+                    <MaterialCommunityIcons name="lightbulb-outline" size={20} color="#0052CC" />
                   </View>
                   <Text style={styles.optionText}>{option.text}</Text>
                 </View>
