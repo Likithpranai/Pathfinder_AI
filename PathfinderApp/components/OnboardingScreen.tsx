@@ -63,7 +63,16 @@ export default function OnboardingScreen() {
   // Animation values
   const progressAnimation = useSharedValue(0);
   
-  const currentQuestion = onboardingQuestions[currentQuestionIndex];
+  // Randomize options for the current question
+  const currentQuestion = React.useMemo(() => {
+    const question = {...onboardingQuestions[currentQuestionIndex]};
+    // Create a copy of options and shuffle them
+    const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+    return {
+      ...question,
+      options: shuffledOptions
+    };
+  }, [currentQuestionIndex]);
   const progress = ((currentQuestionIndex + 1) / onboardingQuestions.length) * 100;
   
   // Update progress animation when progress changes
@@ -140,16 +149,23 @@ export default function OnboardingScreen() {
     return selectedOptions[currentQuestion.id] === optionId;
   };
 
-  // Get the category icon based on option type
+  // Function to get icon based on option type
   const getCategoryIcon = (type?: string) => {
     switch (type) {
-      case 'tech': return <Ionicons name="code-outline" size={24} color="#4a90e2" />;
-      case 'engineering': return <MaterialIcons name="build" size={24} color="#f5a623" />;
-      case 'science': return <MaterialIcons name="science" size={24} color="#7ed321" />;
-      case 'business': return <MaterialIcons name="business" size={24} color="#9013fe" />;
-      case 'creative': return <Ionicons name="color-palette-outline" size={24} color="#e91e63" />;
-      case 'social': return <Ionicons name="people-outline" size={24} color="#50e3c2" />;
-      default: return null;
+      case 'tech':
+        return <Ionicons name="code-outline" size={24} color="#4a90e2" />;
+      case 'engineering':
+        return <MaterialIcons name="build" size={24} color="#f5a623" />;
+      case 'science':
+        return <MaterialIcons name="science" size={24} color="#7ed321" />;
+      case 'business':
+        return <MaterialIcons name="business" size={24} color="#9013fe" />;
+      case 'creative':
+        return <Ionicons name="color-palette-outline" size={24} color="#e91e63" />;
+      case 'social':
+        return <Ionicons name="people-outline" size={24} color="#50e3c2" />;
+      default:
+        return null;
     }
   };
 
@@ -212,7 +228,7 @@ export default function OnboardingScreen() {
             >
               <TouchableOpacity
                 style={[
-                  styles.optionButton,
+                  styles.optionButton, 
                   isOptionSelected(option.id) && styles.selectedOption
                 ]}
                 onPress={() => handleOptionSelect(option.id)}
@@ -220,9 +236,9 @@ export default function OnboardingScreen() {
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionIconContainer}>
-                    {getCategoryIcon(option.type)}
+                    <Ionicons name="list-circle-outline" size={20} color="#0052CC" />
                   </View>
-                  <ThemedText style={styles.optionText}>{option.text}</ThemedText>
+                  <Text style={styles.optionText}>{option.text}</Text>
                 </View>
                 {isOptionSelected(option.id) && (
                   <View style={styles.checkmarkContainer}>
@@ -334,8 +350,9 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 18,
     fontWeight: '600',
-    lineHeight: 24,
+    marginBottom: 16,
     color: '#333',
+    lineHeight: 24,
   },
   optionsScrollContainer: {
     flex: 1,
@@ -407,7 +424,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 82, 204, 0.05)',
   },
   checkmarkContainer: {
-    marginLeft: 6,
+    marginLeft: 10,
+  },
+  checkmark: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#0052CC',
   },
   optionText: {
     fontSize: 14,
