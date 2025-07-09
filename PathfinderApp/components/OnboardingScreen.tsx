@@ -1,15 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Platform, Image, ScrollView, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { onboardingQuestions } from './OnboardingQuestions';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, 
+  Dimensions, Alert, Platform, Image, SafeAreaView,
+  NativeSyntheticEvent, NativeScrollEvent 
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ThemedView } from './ThemedView';
-import { ThemedText } from './ThemedText';
-import Animated, { FadeIn, FadeOut, SlideInRight, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import { onboardingQuestions } from './OnboardingQuestions';
+import { analyzeAnswers, getCareerRecommendations } from '../utils/CareerRecommendations';
+import CareerResultsScreen from './CareerResultsScreen';
 import { BlurView } from 'expo-blur';
+import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, MaterialIcons, FontAwesome, Entypo } from '@expo/vector-icons';
+import AICareerResultsScreen from './AICareerResultsScreen';
+import { getAICareerRecommendations, AICareerResponse } from '../services/GrokService';
+import { GROK_API_KEY, isGrokConfigured } from '../config/apiKeys';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,6 +59,9 @@ const ScrollIndicator = () => {
 export default function OnboardingScreen() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string>>({});
+  const [showResults, setShowResults] = useState(false);
+  const [aiResponse, setAiResponse] = useState<AICareerResponse | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [canScroll, setCanScroll] = useState(true);
   const scrollY = useSharedValue(0);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -112,39 +122,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleComplete = () => {
-    // Process the selected options here
-    console.log('Selected options:', selectedOptions);
-    
-    // Calculate the most frequent type
-    const typeCounts: Record<string, number> = {};
-    
-    Object.entries(selectedOptions).forEach(([questionId, optionId]) => {
-      const question = onboardingQuestions.find(q => q.id === parseInt(questionId));
-      const option = question?.options.find(o => o.id === optionId);
-      
-      if (option?.type) {
-        typeCounts[option.type] = (typeCounts[option.type] || 0) + 1;
-      }
-    });
-    
-    // Find the type with the highest count
-    let maxCount = 0;
-    let dominantType = '';
-    
-    Object.entries(typeCounts).forEach(([type, count]) => {
-      if (count > maxCount) {
-        maxCount = count;
-        dominantType = type;
-      }
-    });
-    
-    console.log('Dominant type:', dominantType);
-    
-    // Navigate to the home screen or results screen
-    router.replace('/');
-  };
-
   const isOptionSelected = (optionId: string) => {
     return selectedOptions[currentQuestion.id] === optionId;
   };
@@ -168,6 +145,62 @@ export default function OnboardingScreen() {
         return null;
     }
   };
+
+  const handleComplete = async () => {
+    console.log('Selected options:', selectedOptions);
+    
+    // Check if Grok API key is configured
+    if (!isGrokConfigured()) {
+      Alert.alert(
+        "API Key Required",
+        "Please add your Grok API key in the config/apiKeys.ts file to get AI-powered career recommendations.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    setIsLoadingAI(true);
+    setShowResults(true);
+    
+    try {
+      // Get AI career recommendations
+      const response = await getAICareerRecommendations(selectedOptions, GROK_API_KEY);
+      setAiResponse(response);
+      console.log('AI Response:', response);
+    } catch (error) {
+      console.error('Error getting AI career recommendations:', error);
+      Alert.alert(
+        "Error",
+        "There was an error getting career recommendations. Please try again later.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
+
+  const handleRetakeQuiz = () => {
+    setShowResults(false);
+    setCurrentQuestionIndex(0);
+    setSelectedOptions({});
+  };
+  
+  const handleContinueToDashboard = () => {
+    // Navigate to the home screen or dashboard
+    router.replace('/');
+  };
+
+  // If showing results, display AI career recommendations
+  if (showResults) {
+    return (
+      <AICareerResultsScreen
+        aiResponse={aiResponse}
+        isLoading={isLoadingAI}
+        onRetakeQuiz={handleRetakeQuiz}
+        onContinue={handleContinueToDashboard}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
