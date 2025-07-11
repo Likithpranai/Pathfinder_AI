@@ -245,6 +245,17 @@ export default function CareerResultsScreen({
                     <ThemedText style={styles.listItemText}>{career.salaryRange}</ThemedText>
                   </View>
                 </View>
+                
+                {/* AI-powered personalized fit reason */}
+                {career.fitReason && (
+                  <View style={styles.cardSection}>
+                    <ThemedText style={styles.sectionTitle}>Why This Fits You</ThemedText>
+                    <View style={[styles.fitReasonContainer, { backgroundColor: getPersonalityColor(personalityProfile.dominantType) + '15' }]}>
+                      <MaterialIcons name="psychology" size={18} color={getPersonalityColor(personalityProfile.dominantType)} style={styles.fitReasonIcon} />
+                      <ThemedText style={styles.fitReasonText}>{career.fitReason}</ThemedText>
+                    </View>
+                  </View>
+                )}
               </ScrollView>
             </View>
           ))}
@@ -443,6 +454,23 @@ const styles = StyleSheet.create({
   },
   cardSection: {
     marginBottom: 16,
+  },
+  fitReasonContainer: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  fitReasonIcon: {
+    marginRight: 8,
+    marginTop: 2,
+  },
+  fitReasonText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   sectionTitle: {
     fontSize: 15,

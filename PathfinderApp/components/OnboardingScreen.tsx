@@ -7,10 +7,10 @@ import {
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { onboardingQuestions } from './OnboardingQuestions';
-import { analyzeAnswers, getCareerRecommendations } from '../utils/CareerRecommendations';
+import { analyzeAnswers, getCareerRecommendations, PersonalityProfile } from '../utils/CareerRecommendations';
 import CareerResultsScreen from './CareerResultsScreen';
 import { BlurView } from 'expo-blur';
-import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useSharedValue, withTiming, useAnimatedStyle, withRepeat, Easing, FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, MaterialIcons, FontAwesome, Entypo } from '@expo/vector-icons';
@@ -56,8 +56,15 @@ const ScrollIndicator = () => {
   );
 };
 
+// Themed Text component for consistent styling
+const ThemedText = ({ style, children, ...props }: any) => {
+  return <Text style={[{ fontFamily: 'System', color: '#333333' }, style]} {...props}>{children}</Text>;
+};
+
 export default function OnboardingScreen() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [personalityProfile, setPersonalityProfile] = useState<PersonalityProfile | null>(null);
+  const [careerRecommendations, setCareerRecommendations] = useState<any[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [aiResponse, setAiResponse] = useState<AICareerResponse | null>(null);
@@ -149,29 +156,35 @@ export default function OnboardingScreen() {
   const handleComplete = async () => {
     console.log('Selected options:', selectedOptions);
     
-    // Check if Grok API key is configured
-    if (!isGrokConfigured()) {
-      Alert.alert(
-        "API Key Required",
-        "Please add your Grok API key in the config/apiKeys.ts file to get AI-powered career recommendations.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    
-    setIsLoadingAI(true);
-    setShowResults(true);
-    
     try {
-      // Get AI career recommendations
-      const response = await getAICareerRecommendations(selectedOptions, GROK_API_KEY);
-      setAiResponse(response);
-      console.log('AI Response:', response);
+      // First analyze answers to get personality profile
+      const profile: PersonalityProfile = analyzeAnswers(selectedOptions, onboardingQuestions);
+      
+      // Set the personality profile immediately
+      setPersonalityProfile(profile);
+      
+      // Then show loading and results
+      setIsLoadingAI(true);
+      setShowResults(true);
+      
+      // Get AI-powered career recommendations
+      try {
+        const recommendations = await getCareerRecommendations(profile, selectedOptions, true);
+        setCareerRecommendations(recommendations);
+        console.log('Career Recommendations:', recommendations);
+      } catch (error) {
+        console.error('Error getting AI career recommendations:', error);
+        // If AI fails, fall back to rule-based recommendations
+        const fallbackRecommendations = await getCareerRecommendations(profile, selectedOptions, false);
+        setCareerRecommendations(fallbackRecommendations);
+      }
+      
+      console.log('Personality Profile:', profile);
     } catch (error) {
-      console.error('Error getting AI career recommendations:', error);
+      console.error('Error in handleComplete:', error);
       Alert.alert(
         "Error",
-        "There was an error getting career recommendations. Please try again later.",
+        "There was an error analyzing your responses. Please try again later.",
         [{ text: "OK" }]
       );
     } finally {
@@ -190,15 +203,28 @@ export default function OnboardingScreen() {
     router.replace('/');
   };
 
-  // If showing results, display AI career recommendations
-  if (showResults) {
+  // If showing results, display career recommendations
+  if (showResults && personalityProfile) {
     return (
-      <AICareerResultsScreen
-        aiResponse={aiResponse}
-        isLoading={isLoadingAI}
+      <CareerResultsScreen
+        personalityProfile={personalityProfile}
+        careerRecommendations={careerRecommendations}
         onRetakeQuiz={handleRetakeQuiz}
         onContinue={handleContinueToDashboard}
       />
+    );
+  } else if (showResults) {
+    // Show loading screen if results are requested but personality profile isn't ready yet
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#f5f7fa', '#c3cfe2']}
+          style={styles.backgroundGradient}
+        />
+        <View style={styles.loadingContainer}>
+          <ThemedText style={styles.loadingText}>Analyzing your responses...</ThemedText>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -500,6 +526,19 @@ const styles = StyleSheet.create({
     color: '#0052CC',
   },
   buttonIcon: {
-    marginHorizontal: 4,
+    marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#0052CC',
   },
 });

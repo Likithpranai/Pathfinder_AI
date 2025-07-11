@@ -2,9 +2,15 @@
 // IMPORTANT: In a production environment, these should be stored in environment variables
 // or a secure key management system, not directly in the code
 
-export const GROK_API_KEY = "xai-y7JSLBVvUBk6HSwRHguojSep0sVMi8SnT4GL0npNI1v7MyJWzzp1wmbi9UIFAB1DkcO3z5jqspm1lbNn";
+// Gemini API key
+export const GEMINI_API_KEY = "AIzaSyC8i2zsCpZO7I7zqpeGn23MEQyCnE_xkrc";
 
-// Function to check if the API key is configured
-export const isGrokConfigured = (): boolean => {
-  return GROK_API_KEY.length > 0;
+// Function to check if the Gemini API key is configured
+export const isGeminiConfigured = (): boolean => {
+  return GEMINI_API_KEY.length > 0;
+};
+
+// Legacy function kept for compatibility
+export const isOpenAIConfigured = (): boolean => {
+  return false; // Always returns false as we've migrated to Gemini
 };

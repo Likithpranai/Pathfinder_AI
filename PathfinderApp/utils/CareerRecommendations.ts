@@ -1,23 +1,10 @@
 import { Option } from '../components/OnboardingQuestions';
+import { PersonalityProfile, CareerPath } from '../types/CareerTypes';
+import { GEMINI_API_KEY, isGeminiConfigured } from '../config/apiKeys';
+import { getAICareerRecommendations } from '../services/GeminiService';
+import { AICareerResponse, CareerRecommendation } from '../types/AITypes';
 
-// Define career path interfaces
-export interface CareerPath {
-  title: string;
-  description: string;
-  skills: string[];
-  education: string[];
-  industries: string[];
-  growthPotential: string;
-  salaryRange: string;
-  personalityTypes: string[];
-}
-
-export interface PersonalityProfile {
-  dominantType: string;
-  secondaryType: string;
-  description: string;
-  distribution: Record<string, number>;
-}
+// Using interfaces from types/CareerTypes.ts
 
 // Career paths data organized by personality type
 export const careerPaths: Record<string, CareerPath[]> = {
@@ -298,7 +285,39 @@ export function analyzeAnswers(selectedOptions: Record<number, string>, question
 }
 
 // Get career recommendations based on personality profile
-export function getCareerRecommendations(profile: PersonalityProfile): CareerPath[] {
+export async function getCareerRecommendations(
+  profile: PersonalityProfile, 
+  selectedOptions: Record<number, string>,
+  useAI: boolean = true
+): Promise<CareerPath[]> {
+  // If AI is enabled and API key is configured, try to get AI recommendations
+  if (useAI && isGeminiConfigured()) {
+    try {
+      // Set a timeout for the API call to prevent long waits on network issues
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('API request timed out')), 10000); // 10 second timeout
+      });
+      
+      // Race between the API call and the timeout
+      const aiResponse = await Promise.race([
+        getAICareerRecommendations(selectedOptions, GEMINI_API_KEY),
+        timeoutPromise
+      ]) as AICareerResponse;
+      
+      return convertAIResponseToCareerPaths(aiResponse, profile);
+    } catch (error) {
+      console.error('Error getting AI career recommendations:', error);
+      // Fall back to rule-based recommendations if AI fails
+      return getRuleBasedRecommendations(profile);
+    }
+  } else {
+    // Use rule-based recommendations if AI is disabled or API key is not configured
+    return getRuleBasedRecommendations(profile);
+  }
+}
+
+// Original rule-based recommendation system as fallback
+export function getRuleBasedRecommendations(profile: PersonalityProfile): CareerPath[] {
   const { dominantType, secondaryType } = profile;
   let recommendations: CareerPath[] = [];
   
@@ -320,4 +339,23 @@ export function getCareerRecommendations(profile: PersonalityProfile): CareerPat
   
   // Limit to top 6 recommendations
   return recommendations.slice(0, 6);
+}
+
+// Convert AI response to CareerPath format
+function convertAIResponseToCareerPaths(aiResponse: AICareerResponse, profile: PersonalityProfile): CareerPath[] {
+  const { dominantType, secondaryType } = profile;
+  
+  return aiResponse.recommendations.map((rec: CareerRecommendation) => {
+    return {
+      title: rec.field,
+      description: rec.description,
+      skills: rec.skills,
+      education: rec.education,
+      industries: rec.roles,
+      growthPotential: "Based on AI analysis of your profile",
+      salaryRange: "Varies by location and experience",
+      personalityTypes: [dominantType, secondaryType],
+      fitReason: rec.fitReason // Add this new property to store the AI's reasoning
+    } as CareerPath;
+  });
 }
