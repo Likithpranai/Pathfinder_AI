@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { AICareerResponse, CareerRecommendation } from '../services/GeminiService';
+import { AICareerResponse } from '../services/GeminiService';
 
 // Define styles at the top of the file to avoid 'used before declaration' errors
 const styles = StyleSheet.create({
@@ -493,32 +493,20 @@ const styles = StyleSheet.create({
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.9;
 
-interface AICareerResultsScreenProps {
+interface AIPersonalityResultsScreenProps {
   aiResponse: AICareerResponse | null;
   isLoading?: boolean;
   onRetakeQuiz: () => void;
   onContinue: () => void;
 }
 
-export default function AICareerResultsScreen({ 
+export default function AIPersonalityResultsScreen({ 
   aiResponse, 
   isLoading,
   onRetakeQuiz,
   onContinue
-}: AICareerResultsScreenProps) {
-  const [showResults, setShowResults] = useState(false);
-  const [savedCareers, setSavedCareers] = useState<number[]>([]);
-  
-  // Function to toggle saved status of a career
-  const toggleSavedCareer = (index: number) => {
-    setSavedCareers(prev => {
-      if (prev.includes(index)) {
-        return prev.filter(i => i !== index);
-      } else {
-        return [...prev, index];
-      }
-    });
-  };
+}: AIPersonalityResultsScreenProps) {
+  // No need for showResults state as we're only showing personality results
   const router = useRouter();
   
   // Field colors for visual distinction
@@ -569,8 +557,8 @@ export default function AICareerResultsScreen({
   
   // This is a duplicate function - removed
 
-  // Results screen component - Full page personality profile
-  const PersonalityResultsScreen = () => {
+  // Personality results component
+  const renderPersonalityResults = () => {
     if (!aiResponse || !aiResponse.personalityInsight) {
       return (
         <View style={styles.noResultsContainer}>
@@ -631,59 +619,6 @@ export default function AICareerResultsScreen({
           </View>
         </ScrollView>
         
-        {/* Continue Button - Fixed at bottom */}
-        <View style={styles.fullWidthButtonContainer}>
-          <TouchableOpacity 
-            style={styles.fullWidthButton}
-            onPress={() => setShowResults(true)}
-          >
-            <Text style={styles.fullWidthButtonText}>View Career Recommendations</Text>
-            <Ionicons name="arrow-forward" size={20} color="#ffffff" style={styles.buttonIcon} />
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  };
-
-  // Career recommendations screen with vertical scrolling
-  const CareerRecommendationsScreen = () => {
-    if (!aiResponse || !aiResponse.recommendations || aiResponse.recommendations.length === 0) {
-      return (
-        <View style={styles.noResultsContainer}>
-          <MaterialIcons name="error-outline" size={60} color="#fff" />
-          <Text style={styles.noResultsText}>No career recommendations available</Text>
-        </View>
-      );
-    }
-    
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
-        
-        {/* Background Gradient */}
-        <LinearGradient
-          colors={['#0052CC', '#0065FF', '#4C9AFF']}
-          style={styles.backgroundGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your AI Career Matches</Text>
-          <Text style={styles.headerSubtitle}>Powered by Gemini AI</Text>
-        </View>
-        
-        {/* Career Cards - Vertical Scrolling with full-sized cards */}
-        <FlatList
-          data={aiResponse.recommendations}
-          keyExtractor={(item, index) => `career-${index}`}
-          contentContainerStyle={styles.careerListContainer}
-          renderItem={({ item, index }) => (
-            <CareerCard recommendation={item} index={index} />
-          )}
-          ListFooterComponent={<View style={{ height: 100 }} />}
-        />
-        
         {/* Bottom Buttons - Fixed at bottom */}
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
@@ -704,100 +639,9 @@ export default function AICareerResultsScreen({
         </View>
       </SafeAreaView>
     );
-  };      
-  
-  // Individual career card component
-  const CareerCard = ({ recommendation, index }: { recommendation: CareerRecommendation; index: number }) => {
-    const fieldColor = getFieldColor(recommendation.field);
-    const isSaved = savedCareers.includes(index);
-    
-    return (
-      <View style={styles.card}>
-        <View style={styles.cardContent}>
-          {/* Card header */}
-          <LinearGradient
-            colors={[fieldColor, fieldColor + 'CC']}
-            style={styles.cardHeader}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.fieldIconContainer}>
-              {getFieldIcon(recommendation.field)}
-            </View>
-            <Text style={styles.fieldTitle}>{recommendation.field}</Text>
-            
-            {/* Save button */}
-            <TouchableOpacity 
-              style={styles.saveButton}
-              onPress={() => toggleSavedCareer(index)}
-            >
-              <Ionicons 
-                name={isSaved ? "bookmark" : "bookmark-outline"} 
-                size={24} 
-                color="#fff" 
-              />
-            </TouchableOpacity>
-          </LinearGradient>
-          
-          {/* Card body */}
-          <View style={styles.cardBody}>
-            {/* Description */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Description</Text>
-              <Text style={styles.descriptionText}>{recommendation.description}</Text>
-            </View>
-            
-            {/* Roles */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Potential Roles</Text>
-              <View style={styles.rolesList}>
-                {recommendation.roles.map((role, index) => (
-                  <View key={index} style={[styles.roleChip, { backgroundColor: fieldColor + '20' }]}>
-                    <Text style={[styles.roleText, { color: fieldColor }]}>{role}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            
-            {/* Skills */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Key Skills</Text>
-              <View style={styles.skillsList}>
-                {recommendation.skills.map((skill, index) => (
-                  <View key={index} style={styles.skillItem}>
-                    <MaterialIcons name="check-circle" size={16} color={fieldColor} />
-                    <Text style={styles.skillText}>{skill}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            
-            {/* Education */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Education</Text>
-              <View style={styles.educationList}>
-                {recommendation.education.map((edu, index) => (
-                  <View key={index} style={styles.educationItem}>
-                    <MaterialIcons name="school" size={16} color={fieldColor} />
-                    <Text style={styles.educationText}>{edu}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            
-            {/* Why it's a good fit */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Why It's a Good Fit For You</Text>
-              <View style={[styles.fitReasonBox, { borderColor: fieldColor + '50', backgroundColor: fieldColor + '10' }]}>
-                <Text style={[styles.fitReasonLabel, { color: fieldColor }]}>Based on your responses:</Text>
-                <Text style={styles.fitReasonText}>{recommendation.fitReason}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </View>
-    );
   };
+
+  // We've removed the CareerRecommendationsScreen and CareerCard components since we're only showing personality results
 
   // Loading state
   if (isLoading) {
@@ -819,6 +663,6 @@ export default function AICareerResultsScreen({
     );
   }
 
-  // Show either personality results or career recommendations based on state
-  return showResults ? <CareerRecommendationsScreen /> : <PersonalityResultsScreen />;
+  // Only show personality results
+  return renderPersonalityResults();
 }

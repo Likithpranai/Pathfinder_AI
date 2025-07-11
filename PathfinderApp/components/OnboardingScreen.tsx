@@ -7,16 +7,16 @@ import {
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { onboardingQuestions } from './OnboardingQuestions';
-import { analyzeAnswers, getCareerRecommendations, PersonalityProfile } from '../utils/CareerRecommendations';
-import CareerResultsScreen from './CareerResultsScreen';
+import { analyzeAnswers, getCareerRecommendations } from '../utils/CareerRecommendations';
+import { PersonalityProfile } from '../types/CareerTypes';
 import { BlurView } from 'expo-blur';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle, withRepeat, Easing, FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, MaterialIcons, FontAwesome, Entypo } from '@expo/vector-icons';
-import AICareerResultsScreen from './AICareerResultsScreen';
-import { getAICareerRecommendations, AICareerResponse } from '../services/GrokService';
-import { GROK_API_KEY, isGrokConfigured } from '../config/apiKeys';
+import PersonalityResultsScreen from './PersonalityResultsScreen';
+import { AICareerResponse } from '../types/AITypes';
+import { GEMINI_API_KEY, isGeminiConfigured } from '../config/apiKeys';
 
 const { width, height } = Dimensions.get('window');
 
@@ -203,12 +203,23 @@ export default function OnboardingScreen() {
     router.replace('/');
   };
 
-  // If showing results, display career recommendations
+  // If showing results, display personality results
   if (showResults && personalityProfile) {
+    // Convert personality profile to AICareerResponse format
+    const personalityResponse: AICareerResponse = {
+      personalityInsight: personalityProfile.description,
+      personalityDistribution: personalityProfile.distribution,
+      topFields: Object.entries(personalityProfile.distribution)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map((entry) => entry[0]),
+      recommendations: [] // Empty recommendations as we're only showing personality results
+    };
+    
     return (
-      <CareerResultsScreen
-        personalityProfile={personalityProfile}
-        careerRecommendations={careerRecommendations}
+      <PersonalityResultsScreen
+        aiResponse={personalityResponse}
+        isLoading={isLoadingAI}
         onRetakeQuiz={handleRetakeQuiz}
         onContinue={handleContinueToDashboard}
       />

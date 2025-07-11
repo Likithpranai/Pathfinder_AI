@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, Activity
 import { StatusBar } from 'expo-status-bar';
 import { onboardingQuestions } from '../components/OnboardingQuestions';
 import { getAICareerRecommendations } from '../services/GeminiService';
-import AICareerResultsScreen from '../components/AICareerResultsScreen';
+import AIPersonalityResultsScreen from '../components/AIPersonalityResultsScreen';
 import { GEMINI_API_KEY, isGeminiConfigured } from '../config/apiKeys';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -78,7 +78,7 @@ export default function GeminiDemoScreen() {
   // If showing results, display AI career recommendations
   if (showResults && aiResponse) {
     return (
-      <AICareerResultsScreen
+      <AIPersonalityResultsScreen
         aiResponse={aiResponse}
         isLoading={isLoading}
         onRetakeQuiz={handleRetakeQuiz}
