@@ -7,13 +7,15 @@ import {
   ScrollView, 
   TouchableOpacity,
   Dimensions,
-  Animated
+  Animated,
+  Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AICareerResponse } from '../types/AITypes';
+import Svg, { G, Polygon, Line, Circle } from 'react-native-svg';
 
 // Animation for trait bars
 const AnimatedTraitBar = ({ percentage, color, delay = 0 }: { percentage: number, color: string, delay?: number }) => {
@@ -43,280 +45,422 @@ const AnimatedTraitBar = ({ percentage, color, delay = 0 }: { percentage: number
   );
 };
 
+// Define types for radar chart
+interface RadarDataPoint {
+  label: string;
+  value: number;
+}
+
+interface RadarChartColors {
+  stroke: string;
+  fill: string;
+}
+
+interface RadarChartProps {
+  data: RadarDataPoint[];
+  size?: number;
+  colors?: RadarChartColors;
+}
+
+// Custom Radar Chart Component
+const RadarChart = ({ data, size = 250, colors = { stroke: '#0052CC', fill: 'rgba(0, 82, 204, 0.2)' } }: RadarChartProps) => {
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = size * 0.4;
+  
+  // Calculate points for the radar chart
+  const calculatePoint = (index: number, value: number, total: number) => {
+    const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
+    const x = centerX + radius * value * Math.cos(angle);
+    const y = centerY + radius * value * Math.sin(angle);
+    return { x, y };
+  };
+  
+  // Generate polygon points
+  const points = data.map((item: RadarDataPoint, index: number) => {
+    const point = calculatePoint(index, item.value / 100, data.length);
+    return `${point.x},${point.y}`;
+  }).join(' ');
+  
+  // Generate grid lines
+  const gridLines = [];
+  const levels = 5;
+  
+  for (let level = 1; level <= levels; level++) {
+    const scale = level / levels;
+    const gridPoints = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const point = calculatePoint(i, scale, data.length);
+      gridPoints.push(`${point.x},${point.y}`);
+    }
+    
+    gridLines.push(
+      <Polygon
+        key={`grid-${level}`}
+        points={gridPoints.join(' ')}
+        fill="none"
+        stroke="rgba(200, 200, 200, 0.5)"
+        strokeWidth={1}
+      />
+    );
+  }
+  
+  // Generate axis lines
+  const axisLines = data.map((_: RadarDataPoint, index: number) => {
+    const point = calculatePoint(index, 1, data.length);
+    return (
+      <Line
+        key={`axis-${index}`}
+        x1={centerX}
+        y1={centerY}
+        x2={point.x}
+        y2={point.y}
+        stroke="rgba(200, 200, 200, 0.8)"
+        strokeWidth={1}
+      />
+    );
+  });
+  
+  // Generate labels
+  const labels = data.map((item: RadarDataPoint, index: number) => {
+    const point = calculatePoint(index, 1.15, data.length);
+    return (
+      <View
+        key={`label-${index}`}
+        style={{
+          position: 'absolute',
+          left: point.x - 40,
+          top: point.y - 10,
+          width: 80,
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
+          {item.label}
+        </Text>
+      </View>
+    );
+  });
+  
+  return (
+    <View style={{ width: size, height: size, position: 'relative' }}>
+      <Svg width={size} height={size}>
+        {/* Grid */}
+        {gridLines}
+        
+        {/* Axis lines */}
+        {axisLines}
+        
+        {/* Data polygon */}
+        <Polygon
+          points={points}
+          fill={colors.fill}
+          stroke={colors.stroke}
+          strokeWidth={2}
+        />
+        
+        {/* Data points */}
+        {data.map((item: RadarDataPoint, index: number) => {
+          const point = calculatePoint(index, item.value / 100, data.length);
+          return (
+            <Circle
+              key={`point-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={4}
+              fill="white"
+              stroke={colors.stroke}
+              strokeWidth={2}
+            />
+          );
+        })}
+      </Svg>
+      
+      {/* Labels */}
+      {labels}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
+  // Main container styles
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   backgroundGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    bottom: 0,
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    backgroundColor: '#0052CC',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  personalityTypeTag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: -20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  personalityTypeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0052CC',
-    marginLeft: 6,
+    height: 220,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingBottom: 120,
+    paddingHorizontal: 20,
   },
+  
+  // Header styles
   header: {
     padding: 20,
     paddingTop: 60,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#ffffff',
     textAlign: 'center',
     marginBottom: 8,
-    fontFamily: 'System',
   },
   headerSubtitle: {
-    fontSize: 18,
-    color: '#E0E0FF',
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    fontFamily: 'System',
   },
-  fullPagePersonalityContainer: {
+  
+  // Personality type card styles
+  personalityCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginHorizontal: 0,
+    marginTop: -40,
     padding: 20,
-  },
-  insightContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
   },
-  insightTitle: {
-    fontSize: 24,
+  personalityTypeCode: {
+    fontSize: 42,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 15,
-    fontFamily: 'System',
+    letterSpacing: 2,
+    marginVertical: 10,
   },
-  insightText: {
-    fontSize: 17,
-    lineHeight: 26,
-    color: '#444',
-    fontFamily: 'System',
+  personalityTypeName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 5,
   },
-  insightIconContainer: {
-    alignItems: 'center',
-    marginBottom: 15,
+  personalityTypeDescription: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginVertical: 10,
   },
-  insightIcon: {
-    backgroundColor: '#0052CC',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  typeTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
+    marginVertical: 10,
+  },
+  typeTag: {
+    backgroundColor: '#f0f4f9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    margin: 4,
+  },
+  typeTagText: {
+    fontSize: 14,
+    color: '#0052CC',
+    fontWeight: '500',
+  },
+  
+  // Radar Chart
+  radarChartContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    marginTop: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
     alignItems: 'center',
   },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  
+  // Distribution Section
   distributionContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 20,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   distributionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 20,
-    fontFamily: 'System',
-  },
-  distributionIconContainer: {
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  distributionIcon: {
-    backgroundColor: '#0052CC',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
+    textAlign: 'center',
   },
   traitBar: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
+  traitIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
   traitName: {
     width: 100,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
     color: '#333',
-    fontFamily: 'System',
+    fontWeight: '500',
   },
   barContainer: {
     flex: 1,
-    height: 14,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 7,
+    height: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
     overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 7,
   },
   traitPercentage: {
     width: 40,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
     color: '#333',
     textAlign: 'right',
     marginLeft: 10,
-    fontFamily: 'System',
+    fontWeight: '500',
   },
-  traitIcon: {
-    width: 24,
-    marginRight: 8,
-    alignItems: 'center',
+  
+  // Insights Section
+  insightsContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
+  insightTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  insightText: {
+    fontSize: 16,
+    color: '#555',
+    lineHeight: 24,
+  },
+  
+  // Buttons
   buttonsContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#ffffff',
+    padding: 15,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    borderTopColor: '#e0e0e0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   primaryButton: {
     backgroundColor: '#0052CC',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 10,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
-    marginRight: 8,
-    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 5,
   },
   secondaryButton: {
     backgroundColor: '#ffffff',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#0052CC',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   secondaryButtonText: {
     color: '#0052CC',
-    fontSize: 17,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
   exploreButton: {
-    backgroundColor: '#34A853',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    backgroundColor: '#00875A',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowRadius: 2,
   },
   exploreButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-    marginRight: 10,
-    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 8,
   },
-  noResultsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  noResultsText: {
-    fontSize: 18,
-    color: '#fff',
-    textAlign: 'center',
-    marginTop: 20,
-  },
+  
+  // Loading and Error States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -324,16 +468,30 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: 'bold',
     color: '#ffffff',
     marginTop: 20,
+    textAlign: 'center',
   },
   loadingSubtext: {
     fontSize: 16,
-    fontWeight: '400',
-    color: '#E0E0FF',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 10,
+    textAlign: 'center',
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#0052CC',
+  },
+  noResultsText: {
+    fontSize: 18,
+    color: '#ffffff',
+    marginTop: 20,
+    textAlign: 'center',
   },
 });
 
@@ -345,6 +503,79 @@ interface PersonalityResultsScreenProps {
   onRetakeQuiz: () => void;
   onContinue: () => void;
 }
+
+// Helper function to generate personality type code (like MBTI)
+const generateTypeCode = (distribution: Record<string, number>) => {
+  // This is a simplified version - in a real app, you would have a more sophisticated algorithm
+  // based on the actual personality dimensions you're measuring
+  const sorted = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
+  
+  // Take the first letter of the top 4 traits to form a code like MBTI
+  return sorted.slice(0, 4).map(([trait]) => trait.charAt(0).toUpperCase()).join('');
+};
+
+// Helper function to get personality archetype name based on dominant trait
+const getPersonalityArchetype = (dominantTrait: string): string => {
+  const archetypes: Record<string, string> = {
+    'Technology': 'The Innovator',
+    'Tech': 'The Innovator',
+    'Engineering': 'The Builder',
+    'Science': 'The Analyst',
+    'Business': 'The Leader',
+    'Creative': 'The Creator',
+    'Social': 'The Connector',
+    'Healthcare': 'The Healer',
+    'Education': 'The Mentor',
+    'Arts': 'The Visionary',
+    'Finance': 'The Strategist',
+    'Law': 'The Advocate'
+  };
+  
+  // Find a partial match in the keys
+  const matchedKey = Object.keys(archetypes).find(key => 
+    dominantTrait.toLowerCase().includes(key.toLowerCase())
+  );
+  
+  return matchedKey ? archetypes[matchedKey] : 'The Explorer';
+};
+
+// Helper function to get personality tags based on traits
+const getPersonalityTags = (distribution: Record<string, number>): string[] => {
+  const traits = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
+  const tags: string[] = [];
+  
+  // Add archetype for dominant trait
+  tags.push(getPersonalityArchetype(traits[0][0]));
+  
+  // Add descriptive tags based on top traits
+  if (traits[0][0].toLowerCase().includes('tech') || traits[0][0].toLowerCase().includes('engineering')) {
+    tags.push('Analytical Thinker');
+  }
+  
+  if (traits[0][0].toLowerCase().includes('creative') || traits[0][0].toLowerCase().includes('arts')) {
+    tags.push('Imaginative');
+  }
+  
+  if (traits[0][0].toLowerCase().includes('social') || traits[0][0].toLowerCase().includes('education')) {
+    tags.push('People-Oriented');
+  }
+  
+  if (traits[0][0].toLowerCase().includes('business') || traits[0][0].toLowerCase().includes('finance')) {
+    tags.push('Strategic');
+  }
+  
+  // Add a general tag based on second highest trait
+  if (traits.length > 1) {
+    if (traits[1][0].toLowerCase().includes('tech')) tags.push('Tech-Savvy');
+    if (traits[1][0].toLowerCase().includes('creative')) tags.push('Creative Thinker');
+    if (traits[1][0].toLowerCase().includes('social')) tags.push('Empathetic');
+    if (traits[1][0].toLowerCase().includes('science')) tags.push('Methodical');
+    if (traits[1][0].toLowerCase().includes('business')) tags.push('Goal-Oriented');
+  }
+  
+  // Return unique tags (up to 3)
+  return Array.from(new Set(tags)).slice(0, 3);
+};
 
 export default function PersonalityResultsScreen({ 
   aiResponse, 
@@ -364,7 +595,7 @@ export default function PersonalityResultsScreen({
       'Healthcare': '#46BDC6',
       'Education': '#9C27B0',
       'Arts': '#FF5722',
-      'Social Sciences': '#795548',
+      'Social': '#795548',
       'Finance': '#607D8B',
       'Law': '#3F51B5'
     };
@@ -436,6 +667,23 @@ export default function PersonalityResultsScreen({
   
   const dominantType = getDominantType();
   
+  // Generate personality type code (like MBTI)
+  const typeCode = aiResponse.personalityDistribution ? 
+    generateTypeCode(aiResponse.personalityDistribution) : 'XXXX';
+  
+  // Get personality archetype
+  const archetype = getPersonalityArchetype(dominantType);
+  
+  // Get personality tags
+  const personalityTags = aiResponse.personalityDistribution ? 
+    getPersonalityTags(aiResponse.personalityDistribution) : [];
+  
+  // Prepare radar chart data
+  const radarData = aiResponse.personalityDistribution ? 
+    Object.entries(aiResponse.personalityDistribution)
+      .map(([trait, value]) => ({ label: trait, value }))
+      .slice(0, 6) : [];
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -452,43 +700,43 @@ export default function PersonalityResultsScreen({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Your Personality Profile</Text>
+          <Text style={styles.headerSubtitle}>Based on your responses</Text>
         </View>
         
-        {/* Avatar and Personality Type */}
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <MaterialIcons name="person" size={60} color="#ffffff" />
-          </View>
-          <View style={styles.personalityTypeTag}>
-            {getPersonalityIcon(dominantType)}
-            <Text style={styles.personalityTypeText}>{dominantType} Type</Text>
-          </View>
-        </View>
-        
-        {/* Personality Insight - Main section */}
-        <View style={styles.fullPagePersonalityContainer}>
-          <View style={styles.insightContainer}>
-            <View style={styles.insightIconContainer}>
-              <View style={styles.insightIcon}>
-                <MaterialIcons name="psychology" size={28} color="#ffffff" />
+        {/* Personality Type Card */}
+        <View style={styles.personalityCard}>
+          <Text style={styles.personalityTypeCode}>{typeCode}</Text>
+          <Text style={styles.personalityTypeName}>{archetype}</Text>
+          
+          {/* Personality Tags */}
+          <View style={styles.typeTagsContainer}>
+            {personalityTags.map((tag, index) => (
+              <View key={index} style={styles.typeTag}>
+                <Text style={styles.typeTagText}>{tag}</Text>
               </View>
-            </View>
-            <Text style={styles.insightTitle}>Personality Analysis</Text>
-            <Text style={styles.insightText}>{aiResponse.personalityInsight}</Text>
+            ))}
           </View>
           
-          {/* Personality Distribution */}
-          {aiResponse.personalityDistribution && (
-            <View style={styles.distributionContainer}>
-              <View style={styles.distributionIconContainer}>
-                <View style={styles.distributionIcon}>
-                  <MaterialIcons name="bar-chart" size={28} color="#ffffff" />
-                </View>
-              </View>
-              <Text style={styles.distributionTitle}>Your Trait Distribution</Text>
-              {aiResponse.personalityDistribution && Object.entries(aiResponse.personalityDistribution)
-                .sort((a, b) => b[1] - a[1])
-                .map(([trait, percentage], index) => (
+          <Text style={styles.personalityTypeDescription}>
+            {aiResponse.personalityInsight}
+          </Text>
+        </View>
+        
+        {/* Radar Chart */}
+        {radarData.length > 0 && (
+          <View style={styles.radarChartContainer}>
+            <Text style={styles.chartTitle}>Your Personality Dimensions</Text>
+            <RadarChart data={radarData} size={300} colors={{ stroke: getFieldColor(dominantType), fill: `${getFieldColor(dominantType)}40` }} />
+          </View>
+        )}
+        
+        {/* Personality Distribution */}
+        {aiResponse.personalityDistribution && (
+          <View style={styles.distributionContainer}>
+            <Text style={styles.distributionTitle}>Your Trait Distribution</Text>
+            {Object.entries(aiResponse.personalityDistribution)
+              .sort((a, b) => b[1] - a[1])
+              .map(([trait, percentage], index) => (
                 <View key={index} style={styles.traitBar}>
                   <View style={styles.traitIcon}>
                     {getPersonalityIcon(trait)}
@@ -503,9 +751,24 @@ export default function PersonalityResultsScreen({
                   </View>
                   <Text style={styles.traitPercentage}>{percentage.toString()}%</Text>
                 </View>
-              ))}
-            </View>
-          )}
+              ))
+            }
+          </View>
+        )}
+        
+        {/* Personality Insights */}
+        <View style={styles.insightsContainer}>
+          <Text style={styles.insightTitle}>What This Means For You</Text>
+          <Text style={styles.insightText}>
+            Based on your personality profile, you tend to excel in environments that value 
+            {dominantType.toLowerCase().includes('tech') ? ' technical problem-solving and innovation' : 
+             dominantType.toLowerCase().includes('creative') ? ' creativity and self-expression' :
+             dominantType.toLowerCase().includes('social') ? ' interpersonal connections and teamwork' :
+             dominantType.toLowerCase().includes('business') ? ' leadership and strategic thinking' :
+             ' analytical thinking and methodical approaches'}.
+            
+            Your strengths include {personalityTags.join(', ')}, which can be valuable assets in your career journey.
+          </Text>
         </View>
       </ScrollView>
       
